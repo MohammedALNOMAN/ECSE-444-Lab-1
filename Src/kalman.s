@@ -17,22 +17,17 @@ kalman: //label
 //your function
 //POP stack
 // R0 is address of struct and R1 is the address of measurement. R2 is length.
+VLDM.F32 R0, {S1-S5} //S1 is q, S2 is r, S3 is x, S4 is p, and S5 is k
+//Assume S0 is measurement
 
-VLDR S1, [R0] //S1 is q
-VLDR S2, [R0,#4] //S2 is r
-VLDR S3, [R0, #8] //S3 is x
-VLDR S4, [R0, #12] //S4 is p
-VLDR S5, [R0, #16] //S5 is k
-//Assume S6 is measurement
-update:
-VADD S4, S4, S1 // p
-VADD S7, S4, S2  // S7 is p+r
-VDIV S5, S4, S7
-VSUB S7, S6, S3 // S7 is now measurement - x
-VMLA S3, S5, S7
-VMLS S4, S4, S5
+VADD.F32 S4, S4, S1
+VADD.F32 S7, S4, S2  // S7 is p+r
+VDIV.F32 S5, S4, S7
+VSUB.F32 S7, S0, S3 // S7 is now measurement - x
+VMLA.F32 S3, S5, S7
+VMLS.F32 S4, S4, S5
 
-
+VSTM.F32 R0, {S1-S5} //S1 is q, S2 is r, S3 is x, S4 is p, and S5 is k
 BX LR
 
 
