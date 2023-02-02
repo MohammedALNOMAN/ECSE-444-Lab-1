@@ -6,7 +6,7 @@ Assembler directives
 */
 
 /**
-The "unified" syntax option tells the assembler to interpret 
+The "unified" syntax option tells the assembler to interpret
 ARM and THUMB instructions in the same file, without the programmer
 having to specify which set the instruction is from.
 */
@@ -31,20 +31,18 @@ import this file.
 
 /**
  * @brief Update function for the Kalman filter. The function changes the filter
- * parameters in place and returns nothing. 
- * 
+ * parameters in place and returns nothing.
+ *
  * @param filter1 : Pointer to a KalmanFilter struct
  * @param measurement : The newest measurement to update the filter coefficients
- * 
+ *
  * [Register mapping]
-
  * [Input arguments]
  * R0 => Pointer to the Kalman filter struct. This instance will be modified in
  * place.
  * S0 => The latest measurement value with which the filter coefficients will be
  * updated.
-
- * [Kalman filter parameters] 
+ * [Kalman filter parameters]
  * S1 => Process noise covariance (q)
  * S2 => Measurement noise covariance (r)
  * S3 => Estimated value (x)
@@ -53,11 +51,8 @@ import this file.
  * S7 => Temporary register for intermediate values
  */
 kalman:
-//PUSH current state to stack
-//TODO: #1 Test before lab
-// PUSH {R1-LR}
-// VPUSH.F32 {S8-S31}
-
+VPUSH.F32 {S1-S7}
+PUSH {R1}
 // Load the filter parameters into the registers described above
 VLDM.F32 R0, {S1-S5}
 
@@ -66,8 +61,6 @@ VADD.F32 S4, S4, S1
 
 // With S7 = (p + r),
 // k = p / S7
-// Tried to play with the equation to avoid the DIV, could not
-// find a way. Any tips?
 VADD.F32 S7, S4, S2
 VDIV.F32 S5, S4, S7
 
@@ -80,25 +73,28 @@ VMLA.F32 S3, S5, S7
 // p = p - p*k; refactored into a single MLS
 VMLS.F32 S4, S4, S5
 
-// Check the first 5 bits of FPSCR to see if an 
+// Check the bits of FPSCR to see if an
 // exception has occured in the operations.
-// TODO: #4 Test before lab
-// MRS R1, FPSCR
-// TST R1, #0x1F
-// Clear exception bits if exception did happen
-// BICNE R1, R1, #0x1F
-// MSRNE FPSCR, R1
-// BNE exit
+
+VMRS R1, FPSCR
+TST R1, #0xF
+BEQ edit
+
+// Clear exception bits if there was an exception caught.
+AND R1, R1, #0xFFFFFFE0
+VMSR FPSCR, R1
+B exit
 
 // If no exception occured, update filter coefficients in place
+
+edit:
+
 VSTM.F32 R0, {S1-S5}
 
 exit:
-//POP stack (and clear FPSCR)
-// TODO: #3 Test before lab
-// POP {R1-LR}
-// VPOP.F32 {S8-S31}
-    BX LR
+VPOP.F32 {S1-S7}
+POP {R1}
+BX LR
 
 
 

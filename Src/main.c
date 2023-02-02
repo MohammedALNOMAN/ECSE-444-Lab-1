@@ -21,15 +21,29 @@
 #define ARM_MATH_CM4
 #include "arm_math.h"
 
+
+
+/**
+* @brief Definition for a Kalman filter object, as described in the lab
+* handout.
+*/
+struct  KalmanFilter {
+  	  float q; // process noise covariance
+  	  float r; // measurement noise covariance
+  	  float x; // estimated value
+  	  float p; // estimation error covariance
+  	  float k; // adaptive Kalman filter gain.
+    };
+
 /**
  * @brief C signature for the Kalman filter update function. The keyword "extern"
  * is for the compiler to know that the function is defined elsewhere (kalman.s),
  * and that it is the linker's job to find the function in the global context.
- * 
- * @param filter1 : Pointer to a KalmanFilter struct
+ *
+ * @param filter : Pointer to a KalmanFilter struct
  * @param measurement : The newest measurement to update the filter coefficients
  */
-extern void kalman(struct KalmanFilter *filter1, float measurement);
+extern void kalman(struct KalmanFilter *filter, float measurement);
 void SystemClock_Config(void);
 
 /**
@@ -44,23 +58,12 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-  /**
-   * @brief Definition for a Kalman filter object, as described in the lab
-   * handout.
-   */
-  struct  KalmanFilter {
-  	  float q; // process noise covariance
-  	  float r; // measurement noise covariance
-  	  float x; // estimated value
-  	  float p; // estimation error covariance
-  	  float k; // adaptive Kalman filter gain.
-    };
 
   // Testing with given parameters and mock data, as described in the lab handout
-  struct KalmanFilter filter1 = {0.1,0.1,5, 0.1,0};
+  struct KalmanFilter filter1 = {0.1,0.1,5, 0.1, 0};
   float measurement = 0;
   kalman(&filter1, measurement);
-  measurement = 1;
+  measurement = -100;
   kalman(&filter1, measurement);
 
   while (1)
