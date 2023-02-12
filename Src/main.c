@@ -18,33 +18,42 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#define ARM_MATH_CM4
-#include "arm_math.h"
 
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
 
+/* USER CODE END Includes */
 
-/**
-* @brief Definition for a Kalman filter object, as described in the lab
-* handout.
-*/
-struct  KalmanFilter {
-  	  float q; // process noise covariance
-  	  float r; // measurement noise covariance
-  	  float x; // estimated value
-  	  float p; // estimation error covariance
-  	  float k; // adaptive Kalman filter gain.
-    };
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
 
-/**
- * @brief C signature for the Kalman filter update function. The keyword "extern"
- * is for the compiler to know that the function is defined elsewhere (kalman.s),
- * and that it is the linker's job to find the function in the global context.
- *
- * @param filter : Pointer to a KalmanFilter struct
- * @param measurement : The newest measurement to update the filter coefficients
- */
-extern void kalman(struct KalmanFilter *filter, float measurement);
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+/* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
@@ -52,27 +61,40 @@ void SystemClock_Config(void);
   */
 int main(void)
 {
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
+  /* USER CODE BEGIN SysInit */
 
-  // Testing with given parameters and mock data, as described in the lab handout
-  struct KalmanFilter filter1 = {0.1,0.1,5, 0.1, 0};
-  float measurement = 0;
-  kalman(&filter1, measurement);
-  measurement = -100;
-  kalman(&filter1, measurement);
+  /* USER CODE END SysInit */
 
+  /* Initialize all configured peripherals */
+  /* USER CODE BEGIN 2 */
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // In a real world application, the update function would be run here, in
-    // real time.
+    /* USER CODE END WHILE */
 
-    // kalman(&filter1, measurement);
+    /* USER CODE BEGIN 3 */
   }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -124,6 +146,10 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 }
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
