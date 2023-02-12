@@ -18,42 +18,74 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#define ARM_MATH_CM4
+#include "arm_math.h"
+#include <fenv.h>
+#include "math.h"
+#define ITM_Port32(n) (*((volatile unsigned long *) (0xE0000000+4*n)))
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 
-/* USER CODE END Includes */
 
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
+/**
+* @brief Definition for a kalman_state object, as described in the lab
+* handout.
+*/
+struct  kalman_state {
+  	  float q; // process noise covariance
+  	  float r; // measurement noise covariance
+  	  float x; // estimated value
+  	  float p; // estimation error covariance
+  	  float k; // adaptive Kalman filter gain.
+    };
 
-/* USER CODE END PTD */
+/**
+ * @brief C signature for the Kalman filter update function. The keyword "extern"
+ * is for the compiler to know that the function is defined elsewhere (kalman.s),
+ * and that it is the linker's job to find the function in the global context.
+ *
+ * @param kstate : Pointer to a kalman_state struct
+ * @param measurement : The newest measurement to update the filter coefficients
+ * @param error: Pointer to an error variable that is 1 if an error is detected and 0 otherwise.
+ */
+extern void kalman(struct kalman_state *kstate, float measurement, int* error);
 
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
+/**
+ * @brief C signature for the kalmanfilter function that runs in C looping through an input array
+ * and storing output values (x) in an output array
+ *
+ * @param InputArray : Pointer to an array of input measurements
+ * @param OutputArray : Pointer to an array of output x values
+ * @param kstate: pointer to the current kalman_state struct
+ * @param Length: Length of the input array
+ * retvalu int determining whether the program ran successfully or whether there were errors.
+ */
+int Kalmanfilter(float* InputArray, float* OutputArray, struct kalman_state* kstate, int Length);
 
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
+/**
+ * @brief C signature for the Kalman filter update function in C.
+ *
+ * @param kstate : Pointer to a kalman_state struct
+ * @param measurement : The newest measurement to update the filter coefficients
+ * @param error: Pointer to an error variable that is 1 if an error is detected and 0 otherwise.
+ */
+void kalmanC(struct kalman_state *kstate, float measurement, int* error);
 
-/* USER CODE END PM */
+/**
+ * @brief C signature for the Kalman filter update function using CMSIS DSP Instructions.
+ *
+ * @param kstate : Pointer to a kalman_state struct
+ * @param measurement : The newest measurement to update the filter coefficients
+ * @param error: Pointer to an error variable that is 1 if an error is detected and 0 otherwise.
+ */
+void kalmanC(struct kalman_state *kstate, float measurement, int* error);
 
-/* Private variables ---------------------------------------------------------*/
 
-/* USER CODE BEGIN PV */
+float average(float array[], int length);
+float stddev(float *array, int length);
+void correlation(float *array1, float *array2, float *array3, int length);
+void convolution(float *array1, float *array2,float *array3, int length);
 
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
@@ -61,40 +93,144 @@ void SystemClock_Config(void);
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+  // Testing with given parameters and mock data, as described in the lab handout
+  struct kalman_state filter1 = {0.1,0.1,5, -0.2, 0};
+  float arr [] = {0,1,2,3,4};
+  float arr2 [5];
+  int error = Kalmanfilter(arr, arr2, &filter1, 5);
 
-  /* Initialize all configured peripherals */
-  /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
+}
+
+void kalmanC(struct kalman_state *kstate, float measurement, int* error){
+	// p = p + q
+	kstate->p += kstate ->q;
+
+	// k = p / (p+r)
+	kstate->k = (kstate ->p)/(kstate->p+kstate->r);
+
+	// x = x + k*(measurement - x)
+	kstate->x += (kstate->k)*(measurement-kstate->x);
+
+	//p = p * (1-k)
+	kstate->p *= (1-kstate->k);
+
+	//Testing for any errors.
+	if (fetestexcept(FE_DIVBYZERO || FE_INVALID || FE_OVERFLOW || FE_UNDERFLOW)){
+		feclearexcept(FE_ALL_EXCEPT);
+		*error = 1;
+	}
+	feclearexcept(FE_ALL_EXCEPT);
+}
+
+void kalmanDSP(struct kalman_state *kstate, float measurement, int* error){
+
+	// p = p + q
+	arm_add_f32(&kstate->p, &kstate->q,&kstate->p,1);
+
+	// k = p / (p+r)
+	kstate->k = (kstate ->p)/(kstate->p+kstate->r);
+
+	// x = x + k*(measurement - x)
+	arm_sub_f32(&measurement, &kstate->x,&measurement,1);
+	arm_mult_f32(&measurement, &kstate->k,&measurement,1);
+	arm_add_f32(&measurement, &kstate->x,&kstate->x,1);
+
+	// p = p * (1-k)
+	float i = 1;
+	arm_sub_f32(&i, &kstate->k,&measurement,1);
+	arm_mult_f32(&kstate->p, &measurement,&kstate->p,1);
+	//Testing for any errors.
+		if (fetestexcept(FE_DIVBYZERO || FE_INVALID || FE_OVERFLOW || FE_UNDERFLOW)){
+			feclearexcept(FE_ALL_EXCEPT);
+			*error = 1;
+		}
+		feclearexcept(FE_ALL_EXCEPT);
+}
+
+int Kalmanfilter(float* InputArray, float* OutputArray, struct kalman_state* kstate, int Length)
+{
+	// Initializing Error to 0.
+	int error = 0;
+	// Looping through the input array
+	for(int i = 0; i < Length; i++){
+		// There are three implementations available to pick from.
+		kalmanC(kstate, *InputArray, &error);
+		//kalman(kstate, *InputArray, &error);
+		//kalmanDSP(kstate, *InputArray, &error);
+
+		// Incrementing arrays and storing new values.
+		InputArray++;
+		*OutputArray = kstate -> x;
+		OutputArray++;
+	}
+	*OutputArray = '\0';
+	return error;
+}
+
+void subtract(float *original, float *kalman, float *output, int length){
+	for(int i = 0; i < length; i++){
+		output[i] = original[i]-kalman[i];
+	}
+}
+
+float average(float array[], int length){
+	float sum = 0;
+	for(int i =0; i< length; i++){
+		sum += array[i];
+	}
+	return (sum/(float)length);
+}
+
+float stddev(float *array, int length){
+	float avg1 = average(array, length);
+	float sum = 0;
+	for (int i = 0; i<length; i++){
+		float difference = array[i] - avg1;
+		difference *= difference;
+		sum += difference;
+	}
+	sum /= (length - 1);
+	sum = sqrt(sum);
+	return sum;
+}
+
+void correlation(float *array1, float *array2,float *array3, int length){
+
+	convolution(array1, array2, array3, length);
+
+int start = 0;
+int end = length*2-2;
+while(start<end){
+	float tmp = array3[start];
+	array3[start]=array3[end];
+	array3[end] = tmp;
+	start++;
+	end--;
+}
+
+
+}
+
+void convolution(float *array1, float *array2, float *array3, int length){
+
+	for(int n=0; n<length ;n++){
+		for(int m=0; m<length; m++){
+			array3[m+n] += array1[n]*array2[m];
+		}
+	}
+
+
 }
 
 /**
@@ -146,10 +282,6 @@ void SystemClock_Config(void)
     Error_Handler();
   }
 }
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
